@@ -2,7 +2,7 @@
 # osureplay, a parser for osu replays in Nim
 
 This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format)
-Originally this parser was ported from ![this](https://github.com/kszlim/osu-replay-parser) Python replay parser
+Originally this parser was ported from [this](https://github.com/kszlim/osu-replay-parser) Python replay parser
 
 ## Installation
 To install osrparse, simply:
