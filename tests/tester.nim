@@ -40,5 +40,5 @@ suite "Standart osu! game mode replays parsing":
     check($replay.timestamp == "2013-02-01T16:31:34+00:00")
     
   test "Play data":
-    check(replay.playData[0] is ReplayEvent)
-    check(len(replay.playData) == 17500)
+    check(replay.playEvents[0] is ReplayEvent)
+    check(len(replay.playEvents) == 17500)

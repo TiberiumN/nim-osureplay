@@ -10,7 +10,6 @@
 
 #include "easylzma/compress.h"
 #include "lzma_header.h"
-#include "lzip_header.h"
 #include "common_internal.h"
 
 #include "pavlov/Types.h"
@@ -92,12 +91,6 @@ elzma_compress_config(elzma_compress_handle hand,
     hand->props.dictSize = dictionarySize;
     hand->uncompressedSize = uncompressedSize;
     hand->format = format;
-
-    /* default of LZMA-Alone is set at alloc time, and there are only
-     * two possible formats */
-    if (format == ELZMA_lzip) {
-        initializeLZIPFormatHandler(&(hand->formatHandler));
-    }
 
     return ELZMA_E_OK;
 }
@@ -218,7 +211,7 @@ elzma_compress_run(elzma_compress_handle hand,
     }
 
     /* verify format is sane */
-    if (ELZMA_lzma != hand->format && ELZMA_lzip != hand->format) {
+    if (ELZMA_lzma != hand->format) {
         return ELZMA_E_UNSUPPORTED_FORMAT;
     }
 

@@ -13,7 +13,6 @@
 #include "pavlov/7zCrc.h"
 #include "common_internal.h"
 #include "lzma_header.h"
-#include "lzip_header.h"
 
 #include <string.h>
 #include <assert.h>
@@ -75,9 +74,6 @@ elzma_decompress_run(elzma_decompress_handle hand,
     /* switch between supported formats */ 
     if (format == ELZMA_lzma) {
         initializeLZMAFormatHandler(&formatHandler);
-    } else if (format == ELZMA_lzip) {
-        CrcGenerateTable();        
-        initializeLZIPFormatHandler(&formatHandler);
     } else {
         return ELZMA_E_BAD_PARAMS;        
     }

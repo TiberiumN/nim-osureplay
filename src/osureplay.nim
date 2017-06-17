@@ -1,4 +1,4 @@
-import os, struct, times, strutils, lzma, strscans
+import os, times, strutils, lzma, strscans
 type
   GameMode* = enum gmStandart, gmTaiko, gmCatchTheBeat, gmMania
   Mod* {.pure.} = enum
@@ -35,8 +35,15 @@ type
     Key2
     ScoreV2 # New, not documented in API yet
   
-  ReplayEvent* = tuple[timeSincePreviousAction: int, x, y: float,
-                       keysPressed: int]
+  Button* {.pure.} = enum
+    M1 = 2, M2 = 4, K1 = 32, K2 = 1024
+
+  ReplayEvent* = tuple[
+    timeSincePreviousAction: int,  # in ms
+    x, y: float,
+    keysPressed: int,  # bitwise combination of keys pressed
+    timestamp: int  # Absolute timestamp in ms (from replay start)
+  ]
   
   Replay* = object
     offset: int
@@ -52,19 +59,18 @@ type
     timestamp*: TimeInfo
     replayLength: int
     raw: string  # Raw replay data, only needed for parsing
-    playData*: seq[ReplayEvent]
+    playEvents*: seq[ReplayEvent]
 
 proc toMods(modNum: cint): set[Mod] {.inline.} =
   ## Converts modNum to set of mods
-  # maybe we can get rid of this check?
   return cast[set[Mod]](modNum)
 
 proc decodeInt(r: var Replay): int {.inline.} = 
-  # ULEB128
+  # ULEB128 to int convertation
   result = 0
   var shift = 0
   while true:
-    let byt = ord(r.raw[r.offset])
+    let byt = cast[byte](r.raw[r.offset])
     inc r.offset
     result = result or ((byt and 0b01111111) shl shift)
     if (byt and 0b10000000) == 0x00:
@@ -75,7 +81,7 @@ proc parseString(r: var Replay): string {.inline.} =
   # Get int value of char at current pos
   case ord(r.raw[r.offset])
   of 0x00:
-    # Empty string
+    # Return empty string
     inc r.offset
     result = ""
   of 0x0b:
@@ -89,18 +95,42 @@ proc parseString(r: var Replay): string {.inline.} =
   else:
     raise newException(ValueError, "Invalid replay!")
 
+
+proc readByte(r: var Replay): byte {.inline.} = 
+  result = cast[byte](r.raw[r.offset])
+  inc r.offset
+
+proc readBool(r: var Replay): bool {.inline.} = 
+  return cast[bool](r.readByte())
+
+proc readShort(r: var Replay): int16 {.inline.} = 
+  let b1 = r.readByte()
+  let b2 = r.readByte()
+  result = b1.int16 + b2.int16 shl 8
+
+proc readInt(r: var Replay): int {.inline.} = 
+  #let bytes = r.raw[r.offset..r.offset+3]
+  #r.offset += 4
+  #echo cast[int](bytes)
+  let b1 = r.readByte()
+  let b2 = r.readByte()
+  let b3 = r.readByte()
+  let b4 = r.readByte()
+  result = b1.int32 + b2.int32 shl 8 + b3.int32 shl 16 + b4.int32 shl 24
+
+proc readInt64(r: var Replay): int64 {.inline.} = 
+  let bytes = r.raw[r.offset..^r.offset+7]
+  r.offset += 8
+  for i in 0..sizeof(int64)-1:
+    result = result shl 8
+    result = result or bytes[8 - i - 1].int64
+  
 proc parseReplay*(raw: string): Replay =
   ## Parses replay by raw data from $raw and returns Replay object
   result.raw = raw
   block parseGameModeAndVersion:
-    const 
-      DataFormat = "<bi"
-      DataLength = struct.calcsize(DataFormat)
-    let data = struct.unpack(DataFormat, result.raw)
-    result.offset += DataLength
-    # Convert byte to value of GameMode enum
-    result.gameMode = cast[GameMode](data[0].getByte) 
-    result.gameVersion = data[1].getInt
+    result.gameMode = cast[GameMode](result.readByte())
+    result.gameVersion = result.readInt()
   
   block parseBeatmapHash:
     result.beatmapHash = result.parseString()
@@ -111,82 +141,51 @@ proc parseReplay*(raw: string): Replay =
   block parseReplayHash:
     result.replayHash = result.parseString()
   
-  block parseScoreStats:
-    const
-      DataFormat = "<hhhhhhih?i"
-      DataLength = struct.calcsize(DataFormat)
-    let data = struct.unpack(DataFormat, result.raw[result.offset..^1])
-    result.offset += DataLength
-    result.number300s = data[0].getInt
-    result.number100s = data[1].getInt
-    result.number50s = data[2].getInt
-    result.gekis = data[3].getInt # special 300's
-    result.katus = data[4].getInt # special 100's
-    result.misses = data[5].getInt
-    result.score = data[6].getInt
-    result.maxCombo = data[7].getInt
+  block parseScoreStats:    
+    result.number300s = result.readShort()
+    result.number100s = result.readShort()
+    result.number50s = result.readShort()
+    result.gekis = result.readShort() # special 300's
+    result.katus = result.readShort() # special 100's
+    result.misses = result.readShort()
+    result.score = result.readInt()
+    result.maxCombo = result.readShort()
     # True - no misses and no slider breaks and no early finished sliders
-    result.isPerfectCombo = data[8].getBool
-    result.mods = data[9].getInt.toMods()
+    result.isPerfectCombo = result.readBool()
+    result.mods = result.readInt().cint.toMods()
   
   block parseLifeBarGraph:
     result.lifeBarGraph = result.parseString()
   
   block parseTimestampAndReplayLength:
-    const
-      DataFormat = "<qi"
-      DataLength = struct.calcsize(DataFormat)
     let 
-      data = struct.unpack(DataFormat, result.raw[result.offset..^1])
+      data = result.readInt64()
       # Convert C# DateTime Ticks to Unix Timestamp
-      unixTimestamp = int float(data[0].getQuad - 621355968000000000) / 10000000
+      unixTimestamp = int float(data - 621355968000000000) / 10000000
     result.timestamp = getGMTime(fromSeconds(unixTimestamp))
-    result.replayLength = data[1].getInt
-    result.offset += DataLength
+    result.replayLength = result.readInt()
   
   block parseReplayData:
-    result.playData = @[]
+    result.playEvents = @[]
     # No play data parsing for another game modes yet :(
     if result.gameMode != gmStandart: return result
-
     let offsetEnd = result.offset + result.replayLength
     # Decompress LZMA-compressed string and split it by ","
     let rawPlayData = decompress(result.raw[result.offset..offsetEnd-1]).split(",")
     # Use less reallocations by preallocating a sequence 
     # (because we know the length of a resulting sequence)
     # len-1 because last entry would be empty (because of extra "," at the end)
-    result.playData = newSeq[ReplayEvent](len(rawPlayData)-1)
+    result.playEvents = newSeq[ReplayEvent](len(rawPlayData)-1)
+    var timestamp = 0  # absolute timestamp
     for index, rawEvent in rawPlayData:
       var 
         time, keys: int
         x, y: float
       # scanf from strscans is faster than splitting by |
       if scanf(rawEvent, "$i|$f|$f|$i", time, x, y, keys):
-        result.playData[index] = (time, x, y, keys)
-  
+        timestamp += time
+        result.playEvents[index] = (time, x, y, keys, timestamp)
+
 proc parseReplayFile*(filepath: string): Replay = 
   ## Parses replay file in $filepath and returns Replay object
   return parseReplay(readFile(filepath))
-
-when isMainModule:
-  if paramCount() < 1:
-    echo "Usage - osureplay.exe filename.osr"
-    quit()
-  let filename = paramStr(1)
-  let r = parseReplayFile(filename)
-  echo """Played by $1 at $2
-Game Mode is $3
-Game Version is $4
-Beatmap hash - $5, replay hash - $6
-Number of 300's - $7, 100's - $8, 50's - $9
-Number of gekis - $10, katus - $11
-Number of misses - $12
-Total score - $13
-Max combo - $14
-Is it a perfect combo? $15 (no misses and no slider breaks and no early finished sliders)
-Mods used - $16
-Number of play data events - $17
-""".format(r.playerName, r.timestamp, r.gameMode, r.gameVersion, 
-            r.beatmapHash, r.replayHash, r.number300s, r.number100s, 
-            r.number50s, r.gekis, r.katus, r.misses,r.score, 
-            r.maxCombo, r.isPerfectCombo,r.mods, len(r.playData))

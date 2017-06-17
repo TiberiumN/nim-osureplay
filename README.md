@@ -1,11 +1,12 @@
 [![Build Status](https://travis-ci.org/TiberiumN/nim-osureplay.svg?branch=master)](https://travis-ci.org/TiberiumN/nim-osureplay)
 # osureplay, a parser for osu replays in Nim
 
-This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format)
+This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format).
+
 Originally this parser was ported from [this](https://github.com/kszlim/osu-replay-parser) Python replay parser
 
 ## Installation
-To install osrparse, simply:
+To install osureplay, simply:
 ```
 $ nimble install osureplay
 ```
@@ -44,13 +45,14 @@ replay.isPerfectCombo # Boolean
 replay.mods # set of Mods
 replay.lifeBarGraph # String, unparsed as of now
 replay.timestamp # TimeInfo object
-replay.playData # Sequence of ReplayEvent tuples
+replay.playEvents # Sequence of ReplayEvent tuples
 ```
 
 ReplayEvent tuples provide these fields
 ```nim
-event.timeSincePreviousAction #Integer representing time in milliseconds
+event.timeSincePreviousAction # Integer representing time in milliseconds
 event.x # X axis location
 event.y # Y axis location
 event.keysPressed # Bitwise sum of keys pressed, documented in OSR format page.
+event.timestamp # Absolute timestamp (from replay start)
 ```
