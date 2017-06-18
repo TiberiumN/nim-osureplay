@@ -4,7 +4,7 @@ author      = "Daniil Yarancev"
 description = "Osu replay parser library and command-line utility."
 license     = "MIT"
 srcDir      = "src"
-bin = @["osureader.exe"]
+bin = @["osureader"]
 requires "nim >= 0.16.0"
 
 task test, "Runs the test suite":

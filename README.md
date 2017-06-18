@@ -1,12 +1,11 @@
-[![Build Status](https://travis-ci.org/TiberiumN/nim-osureplay.svg?branch=master)](https://travis-ci.org/TiberiumN/nim-osureplay)
-# osureplay, a parser for osu replays in Nim
+# osureplay, a parser for osu replays in Nim [![Build Status](https://travis-ci.org/TiberiumN/nim-osureplay.svg?branch=master)](https://travis-ci.org/TiberiumN/nim-osureplay)
 
-This is a parser for osu! rhythm game replays as described by https://osu.ppy.sh/wiki/Osr_(file_format).
+This is a parser for osu! rhythm game replay files as described by https://osu.ppy.sh/wiki/Osr_(file_format).
 
 Originally this parser was ported from [this](https://github.com/kszlim/osu-replay-parser) Python replay parser
 
 ## Installation
-To install osureplay, simply:
+To install osureplay, simply run:
 ```
 $ nimble install osureplay
 ```

@@ -61,16 +61,23 @@ type
     raw: string  # Raw replay data, only needed for parsing
     playEvents*: seq[ReplayEvent]
 
-proc toMods(modNum: cint): set[Mod] {.inline.} =
-  ## Converts modNum to set of mods
-  return cast[set[Mod]](modNum)
+proc `$`*(mode: GameMode): string = 
+  case mode
+  of gmStandart:
+    "osu!standart"
+  of gmTaiko:
+    "osu!taiko"
+  of gmCatchTheBeat:
+    "osu!ctb"
+  of gmMania:
+    "osu!mania"
 
-proc decodeInt(r: var Replay): int {.inline.} = 
-  # ULEB128 to int convertation
+proc readUleb128(r: var Replay): int {.inline.} = 
+  ## Converts ULEB128 to int
   result = 0
   var shift = 0
   while true:
-    let byt = cast[byte](r.raw[r.offset])
+    let byt = byte(r.raw[r.offset])
     inc r.offset
     result = result or ((byt and 0b01111111) shl shift)
     if (byt and 0b10000000) == 0x00:
@@ -88,20 +95,19 @@ proc parseString(r: var Replay): string {.inline.} =
     # String length and string itself
     inc r.offset
     let 
-      stringLength = r.decodeInt()
+      stringLength = r.readUleb128()
       offsetEnd = r.offset + stringLength
     result = r.raw[r.offset..offsetEnd-1]
     r.offset = offsetEnd
   else:
     raise newException(ValueError, "Invalid replay!")
 
-
 proc readByte(r: var Replay): byte {.inline.} = 
-  result = cast[byte](r.raw[r.offset])
+  result = byte(r.raw[r.offset])
   inc r.offset
 
 proc readBool(r: var Replay): bool {.inline.} = 
-  return cast[bool](r.readByte())
+  return bool(r.readByte())
 
 proc readShort(r: var Replay): int16 {.inline.} = 
   let b1 = r.readByte()
@@ -128,63 +134,50 @@ proc readInt64(r: var Replay): int64 {.inline.} =
 proc parseReplay*(raw: string): Replay =
   ## Parses replay by raw data from $raw and returns Replay object
   result.raw = raw
-  block parseGameModeAndVersion:
-    result.gameMode = cast[GameMode](result.readByte())
-    result.gameVersion = result.readInt()
-  
-  block parseBeatmapHash:
-    result.beatmapHash = result.parseString()
-  
-  block parsePlayerName:
-    result.playerName = result.parseString()
-  
-  block parseReplayHash:
-    result.replayHash = result.parseString()
-  
-  block parseScoreStats:    
-    result.number300s = result.readShort()
-    result.number100s = result.readShort()
-    result.number50s = result.readShort()
-    result.gekis = result.readShort() # special 300's
-    result.katus = result.readShort() # special 100's
-    result.misses = result.readShort()
-    result.score = result.readInt()
-    result.maxCombo = result.readShort()
-    # True - no misses and no slider breaks and no early finished sliders
-    result.isPerfectCombo = result.readBool()
-    result.mods = result.readInt().cint.toMods()
-  
-  block parseLifeBarGraph:
-    result.lifeBarGraph = result.parseString()
-  
-  block parseTimestampAndReplayLength:
-    let 
-      data = result.readInt64()
-      # Convert C# DateTime Ticks to Unix Timestamp
-      unixTimestamp = int float(data - 621355968000000000) / 10000000
-    result.timestamp = getGMTime(fromSeconds(unixTimestamp))
-    result.replayLength = result.readInt()
-  
-  block parseReplayData:
-    result.playEvents = @[]
-    # No play data parsing for another game modes yet :(
-    if result.gameMode != gmStandart: return result
-    let offsetEnd = result.offset + result.replayLength
-    # Decompress LZMA-compressed string and split it by ","
-    let rawPlayData = decompress(result.raw[result.offset..offsetEnd-1]).split(",")
-    # Use less reallocations by preallocating a sequence 
-    # (because we know the length of a resulting sequence)
-    # len-1 because last entry would be empty (because of extra "," at the end)
-    result.playEvents = newSeq[ReplayEvent](len(rawPlayData)-1)
-    var timestamp = 0  # absolute timestamp
-    for index, rawEvent in rawPlayData:
-      var 
-        time, keys: int
-        x, y: float
-      # scanf from strscans is faster than splitting by |
-      if scanf(rawEvent, "$i|$f|$f|$i", time, x, y, keys):
-        timestamp += time
-        result.playEvents[index] = (time, x, y, keys, timestamp)
+  result.gameMode = GameMode(result.readByte())
+  result.gameVersion = result.readInt()
+  result.beatmapHash = result.parseString()
+  result.playerName = result.parseString()
+  result.replayHash = result.parseString()
+  result.number300s = result.readShort()
+  result.number100s = result.readShort()
+  result.number50s = result.readShort()
+  result.gekis = result.readShort() # special 300's
+  result.katus = result.readShort() # special 100's
+  result.misses = result.readShort()
+  result.score = result.readInt()
+  result.maxCombo = result.readShort()
+  # True - no misses and no slider breaks and no early finished sliders
+  result.isPerfectCombo = result.readBool()
+  result.mods = cast[set[Mod]](result.readInt())
+  result.lifeBarGraph = result.parseString()
+
+  let 
+    data = result.readInt64()
+    # Convert C# DateTime Ticks to Unix Timestamp
+    unixTimestamp = int float(data - 621355968000000000) / 10000000
+  result.timestamp = getGMTime(fromSeconds(unixTimestamp))
+  result.replayLength = result.readInt()
+
+  result.playEvents = @[]
+  # No play data parsing for another game modes yet :(
+  if result.gameMode != gmStandart: return result
+  let offsetEnd = result.offset + result.replayLength
+  # Decompress LZMA-compressed string and split it by ","
+  let rawPlayData = decompress(result.raw[result.offset..offsetEnd-1]).split(",")
+  # Use less reallocations by preallocating a sequence 
+  # (because we know the length of a resulting sequence)
+  # len-1 because last entry would be empty (because of extra "," at the end)
+  result.playEvents = newSeq[ReplayEvent](len(rawPlayData)-1)
+  var timestamp = 0  # absolute timestamp
+  for index, rawEvent in rawPlayData:
+    var 
+      time, keys: int
+      x, y: float
+    # scanf from strscans is faster than splitting by |
+    if scanf(rawEvent, "$i|$f|$f|$i", time, x, y, keys):
+      timestamp += time
+      result.playEvents[index] = (time, x, y, keys, timestamp)
 
 proc parseReplayFile*(filepath: string): Replay = 
   ## Parses replay file in $filepath and returns Replay object

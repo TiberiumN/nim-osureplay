@@ -1,10 +1,10 @@
-import osureplay, os, strutils
+import osureplay, os, strutils, times
 
 if paramCount() < 1:
   echo "Usage - osureader filename.osr"
   quit()
-let filename = paramStr(1)
-let r = parseReplayFile(filename)
+
+let r = parseReplayFile(paramStr(1))
 echo """Played by $1 at $2
 Game Mode is $3
 Game Version is $4
@@ -19,5 +19,5 @@ Mods used - $16
 Number of play data events - $17
 """.format(r.playerName, r.timestamp, r.gameMode, r.gameVersion, 
           r.beatmapHash, r.replayHash, r.number300s, r.number100s, 
-          r.number50s, r.gekis, r.katus, r.misses,r.score, 
+          r.number50s, r.gekis, r.katus, r.misses, r.score, 
           r.maxCombo, r.isPerfectCombo,r.mods, len(r.playEvents))
