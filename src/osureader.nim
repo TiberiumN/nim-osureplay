@@ -1,10 +1,10 @@
-import osureplay, os, strutils, times
-
+import osureplay, strutils, os
 if paramCount() < 1:
   echo "Usage - osureader filename.osr"
   quit()
 
 let r = parseReplayFile(paramStr(1))
+
 echo """Played by $1 at $2
 Game Mode is $3
 Game Version is $4

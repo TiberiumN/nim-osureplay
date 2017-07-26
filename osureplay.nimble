@@ -1,5 +1,5 @@
 # Package
-version     = "0.0.2"
+version     = "0.0.3"
 author      = "Daniil Yarancev"
 description = "Osu replay parser library and command-line utility."
 license     = "MIT"
