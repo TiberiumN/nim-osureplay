@@ -1,5 +1,5 @@
 
-# These are 3 header files: common.h, compress.h, decompress.h
+# These are 3 header files merged into one: common.h, compress.h, decompress.h
 {.emit:"""
 /*
  * Written in 2009 by Lloyd Hilaiel

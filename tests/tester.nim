@@ -1,4 +1,4 @@
-import osureplay, unittest, times
+import ../src/osureplay, unittest, times
 
 suite "Standart osu! game mode replays parsing":
   let cookiezi = parseReplayFile("tests/resources/cookiezi817.osr")
@@ -40,4 +40,4 @@ suite "Standart osu! game mode replays parsing":
 
   test "Play data":
     check(cookiezi.playEvents[0] is ReplayEvent)
-    check(len(cookiezi.playEvents) == 16160)
+    check(len(cookiezi.playEvents) == 16159)
