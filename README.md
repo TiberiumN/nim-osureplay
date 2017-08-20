@@ -1,4 +1,4 @@
-# osureplay, a parser for osu replays in Nim [![Build Status](https://travis-ci.org/TiberiumN/nim-osureplay.svg?branch=master)](https://travis-ci.org/TiberiumN/nim-osureplay)
+# osureplay, a parser for osu replays in Nim [![Build Status](https://travis-ci.org/Yardanico/nim-osureplay.svg?branch=master)](https://travis-ci.org/Yardanico/nim-osureplay)
 
 This is a parser for osu! rhythm game replay files as described by https://osu.ppy.sh/wiki/Osr_(file_format).
 
