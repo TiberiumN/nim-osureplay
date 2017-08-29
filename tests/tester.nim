@@ -4,7 +4,7 @@ suite "Standart osu! game mode replays parsing":
   let cookiezi = parseReplayFile("tests/resources/cookiezi817.osr")
 
   test "Game mode":
-    check(cookiezi.gameMode == gmStandart)
+    check(cookiezi.gameMode == gmStandard)
 
   test "Game version":
     check(cookiezi.gameVersion == 20151228)
