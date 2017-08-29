@@ -1,9 +1,9 @@
 import os, times, strutils, lzma, strscans, streams, parseutils
+import types, osuapi
 # Export times module (for timestamp)
-export times
+export times, types
 
 type
-  GameMode* = enum gmStandart, gmTaiko, gmCatchTheBeat, gmMania
   Mod* {.pure.} = enum
     NoMod  # Only as a placeholder, check for empty set instead of this
     NoFail
@@ -61,29 +61,18 @@ type
     timestamp*: TimeInfo
     playEvents*: seq[ReplayEvent]
 
-proc `$`*(mode: GameMode): string = 
-  case mode
-  of gmStandart:
-    "osu!standart"
-  of gmTaiko:
-    "osu!taiko"
-  of gmCatchTheBeat:
-    "osu!ctb"
-  of gmMania:
-    "osu!mania"
-
 proc readUleb128(r: var Replay, stream: StringStream): int {.inline.} = 
   ## Converts ULEB128 to int
   var 
     shift = 0
     b: int8
-  if shift == 5 * 7:
+  if unlikely shift == 5 * 7:
     raise newException(ValueError, "Wrong uleb!")
   b = stream.readInt8()
   result = result or ((b and 0x7F) shl shift)
   shift += 7
   while (b and 0x80) != 0:
-    if shift == 5 * 7:
+    if unlikely shift == 5 * 7:
       raise newException(ValueError, "Wrong uleb!")
     b = stream.readInt8()
     result = result or ((b and 0x7F) shl shift)
@@ -97,7 +86,7 @@ proc parseString(r: var Replay, stream: StringStream): string {.inline.} =
   result = stream.readStr(r.readUleb128(stream))
 
 proc parseReplay*(raw: string): Replay =
-  ## Parses replay by raw data from $raw and returns Replay object
+  ## Parses replay by raw data from *raw* and returns Replay object
   # Create new string stream (for reading binary data)
   let raw = newStringStream(raw)
   result.gameMode = GameMode(raw.readInt8())
@@ -123,7 +112,7 @@ proc parseReplay*(raw: string): Replay =
   let replayLength = raw.readInt32()
 
   # No play data parsing for another game modes yet :(
-  if result.gameMode != gmStandart: return result
+  if result.gameMode != gmStandard: return result
   # Decompress LZMA-compressed string
   let rawPlayData = decompress(raw.readStr(replayLength))
   
@@ -140,14 +129,14 @@ proc parseReplay*(raw: string): Replay =
     i = 0  # Current index
   # It's faster to use parseUntil instead of split
   while true:
-    let processed = rawPlayData.parseUntil(token, ',', curPos+1)
+    let processed = rawPlayData.parseUntil(token, ',', curPos + 1)
     # If there's no play events left
-    if processed == 0: 
+    if unlikely(processed == 0): 
       break
     # Add processed chars to current position + 1 char to skip ,
     curPos += processed + 1
     # scanf from strscans is than splitting by |
-    if scanf(token, "$i|$f|$f|$i", time, x, y, keys):
+    if likely(scanf(token, "$i|$f|$f|$i", time, x, y, keys)):
       timestamp += time
       result.playEvents[i] = (time, x, y, keys, timestamp)
     inc i
@@ -155,5 +144,5 @@ proc parseReplay*(raw: string): Replay =
   raw.close()
 
 proc parseReplayFile*(filepath: string): Replay = 
-  ## Parses replay file in $filepath and returns Replay object
+  ## Parses replay file from *filepath* and returns Replay object
   return parseReplay(readFile(filepath))
