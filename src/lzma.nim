@@ -182,20 +182,26 @@ type
     ELZMA_lzma
 
 {.push importc, cdecl.}
-proc simpleCompress(format: elzma_file_format; inData: ptr cuchar; inLen: csize;
-                    outData: ptr ptr cuchar; outLen: ptr csize): cint
+
+proc free*(s: cstring) {.importc: "free", header: "<stdlib.h>".}
+
+proc simpleCompress(format: elzma_file_format; inData: ptr cuchar; inLen: csize_t;
+                    outData: ptr ptr cuchar; outLen: ptr csize_t): cint
         
-proc simpleDecompress(format: elzma_file_format; inData: ptr cuchar; inLen: csize;
-                      outData: ptr ptr cuchar; outLen: ptr csize): cint
+proc simpleDecompress(format: elzma_file_format; inData: ptr cuchar; inLen: csize_t;
+                      outData: ptr ptr cuchar; outLen: ptr csize_t): cint
 {.pop.}
 
 proc decompress*(data: string): string = 
   let inData = cast[ptr cuchar](cstring(data))
-  let inLen = len(data)
+  let inLen = csize_t len(data)
   var outData: ptr cuchar
-  var outLen: csize  # we don't need this anyway
+  var outLen: csize_t
   let errorCode = simpleDecompress(ELZMA_lzma, inData, inLen, 
                                    addr outData, addr outLen)
   if errorCode != 0:
     raise newException(ValueError, "LZMA decompression error - " & $errorCode)
-  return $cast[cstring](outData)
+
+  result = $cast[cstring](outData)
+  # Free the memory allocated for output string in C library
+  free(cast[cstring](outData))

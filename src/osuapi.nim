@@ -31,8 +31,8 @@ type
   ## Beatmap object (from API)
   ApiBeatmap* = object
     approvedState*: ApprovedState 
-    approvedDate*: TimeInfo
-    lastUpdate*: TimeInfo
+    approvedDate*: DateTime
+    lastUpdate*: DateTime
     artist*: string
     id*: int
     setId*: int

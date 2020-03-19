@@ -36,7 +36,7 @@ suite "Standart osu! game mode replays parsing":
     check(cookiezi.mods == {Mod.Hidden, Mod.DoubleTime})
 
   test "Timestamp":
-    check($cookiezi.timestamp == "2016-01-02T23:52:27+00:00")
+    check($cookiezi.timestamp == "2016-01-02T23:52:27Z")
 
   test "Play data":
     check(cookiezi.playEvents[0] is ReplayEvent)

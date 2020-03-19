@@ -58,7 +58,7 @@ type
     isPerfectCombo*: bool
     mods*: set[Mod]
     lifeBarGraph*: string
-    timestamp*: TimeInfo
+    timestamp*: DateTime
     playEvents*: seq[ReplayEvent]
 
 proc readUleb128(r: var Replay, stream: StringStream): int {.inline.} = 
@@ -106,9 +106,9 @@ proc parseReplay*(raw: string): Replay =
   result.isPerfectCombo = raw.readBool()
   result.mods = cast[set[Mod]](raw.readInt32())
   result.lifeBarGraph = result.parseString(raw)
-  # Convert C# DateTime Ticks to Unix Timestamp
-  let unixTimestamp = float(raw.readInt64() - 621355968000000000) / 10000000
-  result.timestamp = getGMTime(fromSeconds(unixTimestamp))
+  # Convert C# DateTime Ticks to Unix timestamp
+  let unixTimestamp = int64(raw.readInt64() - 621355968000000000) div 10000000
+  result.timestamp = utc(fromUnix(unixTimestamp))
   let replayLength = raw.readInt32()
 
   # No play data parsing for another game modes yet :(
@@ -118,7 +118,7 @@ proc parseReplay*(raw: string): Replay =
   
   # Use less reallocations by preallocating a sequence of events
   # -1 because there is , at the end of play events string
-  result.playEvents = newSeq[ReplayEvent](rawPlayData.count(',')-1)
+  result.playEvents = newSeq[ReplayEvent](rawPlayData.count(',') - 1)
   var 
     timestamp = 0  # Absolute timestamp
     token: string  # Current play event string
@@ -127,7 +127,6 @@ proc parseReplay*(raw: string): Replay =
     x, y: float  # X and Y positions
     curPos = rawPlayData.parseUntil(token, ",", 0)
     i = 0  # Current index
-  # It's faster to use parseUntil instead of split
   while true:
     let processed = rawPlayData.parseUntil(token, ',', curPos + 1)
     # If there's no play events left
@@ -145,4 +144,4 @@ proc parseReplay*(raw: string): Replay =
 
 proc parseReplayFile*(filepath: string): Replay = 
   ## Parses replay file from *filepath* and returns Replay object
-  return parseReplay(readFile(filepath))
+  parseReplay(readFile(filepath))
